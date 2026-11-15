@@ -1,0 +1,5 @@
+[
+  { "name": "1-midline.jpg", "query": "?shot=1&seed=1" },
+  { "name": "2-core.jpg", "query": "?shot=2&seed=1" },
+  { "name": "3-buy.jpg", "query": "?shot=3&seed=1" }
+]
