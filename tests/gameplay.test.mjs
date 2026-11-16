@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {state,receiveBotHit,buyVest,buyHelmet,buyUtility,launchUtility,utilityCatalog,visibleWithSmoke,grenadeDamage,newBot,chooseTarget,beginRound,startBuy,buy,finishRound,attackerTeamForRound,roleForRound,seedArmoryPreview,canPlant,canDefuse,requestPlant,requestDefuse,liveStep,keys,stepBotObjective} from '../game/src/simulation.js';
-import {lineClear,pointBlocked,steerStep} from '../game/src/collision.js';
+import {state,receiveBotHit,hitBot,buyVest,buyHelmet,buyUtility,launchUtility,utilityCatalog,visibleWithSmoke,grenadeDamage,newBot,chooseTarget,beginRound,startBuy,buy,finishRound,attackerTeamForRound,roleForRound,seedArmoryPreview,canPlant,canDefuse,requestPlant,requestDefuse,liveStep,keys,stepBotObjective} from '../game/src/simulation.js';
+import {lineClear,pointBlocked,steerStep,projectileBlocked,stepProjectile} from '../game/src/collision.js';
 import {arsenal,categories,freshWeapon,spreadForShot,recoilAngle} from '../game/src/weapons.js';
 
 test('lethal grenade grants one elimination reward and one GRENADE feed entry',()=>{
@@ -69,6 +69,44 @@ test('LOS is blocked by solid map cover but open lane remains visible',()=>{
  let x=-3,z=0,steps=0;while(x<2&&steps++<500){const d=Math.hypot(3-x,-z);[x,z]=steerStep(x,z,(3-x)/d*.04,-z/d*.04,walls,.38,7);assert.equal(pointBlocked(x,z,walls,.38),false);}
  assert.ok(x>1.9,'deterministic steering should route around, not stall at, cover');
 });
+test('utility projectile collision respects box and cylinder height, blocks cover, and leaves open paths clear',()=>{
+ const cover=[{x:0,y:1.5,z:0,w:2,d:2,h:3},{x:5,y:2,z:0,r:1,h:4}];
+ assert.equal(projectileBlocked(0,1.5,0,cover),true,'box cover blocks at body height');
+ assert.equal(projectileBlocked(5,2,0,cover),true,'cylindrical tank blocks at body height');
+ assert.equal(projectileBlocked(0,4,0,cover),false,'high trajectory clears low box cover');
+ assert.equal(projectileBlocked(-4,1.5,0,cover),false,'clear throw path remains open');
+});
+test('utility projectile advances deterministically along a clear path and bounces off cylindrical cover',()=>{
+ const clearA={x:-4,y:2,z:0,vx:6,vy:0,vz:0},clearB={...clearA};
+ stepProjectile(clearA,1/30,[],1/60);stepProjectile(clearB,1/60,[],1/60);stepProjectile(clearB,1/60,[],1/60);
+ assert.ok(clearA.x>clearB.x-.00001&&clearA.x<clearB.x+.00001);assert.ok(clearA.y<2,'gravity advances on the fixed step');
+ const g={x:-2,y:1.5,z:0,vx:10,vy:0,vz:0};for(let i=0;i<12;i++)stepProjectile(g,1/60,[{x:0,y:1.5,z:0,r:1,h:3}]);
+ assert.ok(g.x<-.99,'projectile should bounce before passing through the cylindrical tank');
+ const floor={x:0,y:.205,z:0,vx:2,vy:-1,vz:0};stepProjectile(floor,1/60,[]);assert.equal(floor.y,.2);assert.ok(floor.vy>0);assert.ok(floor.vx<2,'floor bounce retains the existing horizontal damping');
+});
+test('adaptive projectile steps cannot tunnel through thin high-speed box or cylinder cover',()=>{
+ const box={x:-3,y:2,z:0,vx:360,vy:0,vz:0},cylinder={...box};
+ stepProjectile(box,1/60,[{x:0,y:2,z:0,w:.02,d:2,h:4}]);
+ stepProjectile(cylinder,1/60,[{x:0,y:2,z:0,r:.01,h:4}]);
+ assert.ok(box.x<0&&box.vx<0,'thin box should stop and reflect the fast throw');
+ assert.ok(cylinder.x<0&&cylinder.vx<0,'thin cylinder should stop and reflect the fast throw');
+});
+test('descending projectile preserves floor bounce on same-step wall/floor contact',()=>{
+ const g={x:-.26,y:.205,z:0,vx:2,vy:-1.5,vz:0};
+ stepProjectile(g,1/60,[{x:0,y:1,z:0,w:.1,d:2,h:2}]);
+ assert.equal(g.y,.2);assert.ok(g.vy>0,'floor response should still bounce upward');assert.ok(g.vx<0,'wall response should still reflect horizontal motion');
+});
+test('descending projectile keeps downward velocity after wall-only contact',()=>{
+ const g={x:-.26,y:1.5,z:0,vx:2,vy:-3,vz:0};
+ stepProjectile(g,1/60,[{x:0,y:1,z:0,w:.1,d:2,h:2}]);
+ assert.ok(g.x<0&&g.vx<0,'wall impact should reflect horizontal movement');assert.ok(g.y<1.5&&g.vy<0,'wall-only impact must retain falling motion');
+});
+test('tactical and armor HUD controls describe live actions and expose individual durability values',()=>{
+ const ui=readFileSync(new URL('../game/src/ui.js',import.meta.url),'utf8');
+ assert.match(ui,/HOLD E WITHIN 4m OF THE SITE TO PLANT/);assert.doesNotMatch(ui,/SITE B/);
+ for(const [name,id,fill,value] of [['Vest','vest-bar','vest-fill','vest'],['Helmet','helmet-bar','helmet-fill','helmet']]){assert.match(ui,new RegExp(`id="${id}" role="progressbar" aria-label="${name} durability"`));assert.match(ui,new RegExp(`\\$\\('${id}'\\)\\.setAttribute\\('aria-valuenow'`));assert.match(ui,new RegExp(`id="${fill}"`));assert.match(ui,new RegExp(`\\$\\('${fill}'\\)\\.style\\.width=.{0,12}${value}`));}
+ assert.match(ui,/classList\.toggle\('hit',!!state\.hitConfirmation\)/);assert.match(ui,/setProperty\('\-\-reticle-rise'/);
+});
 test('vest and helmet purchases have exact costs, require buy phase, and reset only for next buy window',()=>{
  state.phase='buy';state.credits=1000;state.vest=0;state.helmet=0;
  assert.equal(buyVest(),true);assert.equal(state.credits,350);assert.equal(state.vest,100);
@@ -115,7 +153,7 @@ test('flash projectile blinds visible hostiles and triggers brief player overlay
 
 test('vest consumes durability while reducing body hits by half',()=>{
  state.health=100;state.vest=20;state.helmet=0;
- assert.equal(receiveBotHit(10,{head:false,kind:'Pistol'}),5);assert.equal(state.vest,15);assert.equal(state.health,95);
+ assert.equal(receiveBotHit(10,{head:false,kind:'Pistol'}),5);assert.equal(state.vest,15);assert.equal(state.health,95);assert.equal(state.incomingFeedback,'VEST −5  HP −5');assert.ok(state.incomingHit>0);
 });
 
 test('helmet halves Pistol, SMG, and LMG headshots but AR and Sniper remain lethal',()=>{
@@ -145,6 +183,18 @@ test('grenades damage only hostile targets in radius with clear line of sight an
  assert.equal(grenadeDamage({...newBot(0),team:'Rookline',x:1,z:0},g,clear),0);
  assert.equal(grenadeDamage({...newBot(0),team:'Sumpguard',x:1,z:0},g,blocked),0);
  assert.equal(grenadeDamage({...newBot(0),team:'Sumpguard',x:8,z:0},g,clear),0);
+});
+test('weapon hit confirmation reports actual applied damage and refuses friendly or dead targets',()=>{
+ beginRound(1);const foe=state.bots.find(b=>b.team==='Sumpguard'),ally=state.bots.find(b=>b.team==='Rookline');state.weapon=freshWeapon(0);foe.hp=12;
+ assert.equal(hitBot(ally,false),0);assert.equal(state.hitConfirmation,null);
+ assert.equal(hitBot(foe,false),12);assert.equal(state.hitConfirmation.damage,12);assert.equal(state.hitConfirmation.head,false);assert.equal(hitBot(foe,false),0);
+});
+test('round result clears transient hit and incoming-damage feedback immediately',()=>{
+ beginRound(1);const foe=state.bots.find(b=>b.team==='Sumpguard');state.weapon=freshWeapon(0);foe.hp=12;
+ assert.equal(hitBot(foe,true),12);receiveBotHit(8,{head:false,kind:'Pistol'});
+ assert.ok(state.hitConfirmation);assert.ok(state.incomingHit>0);assert.notEqual(state.incomingFeedback,'');
+ assert.equal(finishRound('Rookline','last target eliminated'),true);
+ assert.equal(state.hitConfirmation,null);assert.equal(state.incomingHit,0);assert.equal(state.incomingFeedback,'');
 });
 
 test('round six swaps the player between attack and defense roles and attacker faction; teams stay balanced',()=>{
