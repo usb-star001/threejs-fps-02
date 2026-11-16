@@ -1,14 +1,18 @@
 [
   {
-    "name": "1-midline.png",
-    "query": "?shot=1&seed=1"
+    "name": "1-site-a-sunset.png",
+    "query": "?shot=1"
   },
   {
-    "name": "2-core.png",
-    "query": "?shot=2&seed=1"
+    "name": "2-site-b-lower.png",
+    "query": "?shot=2"
   },
   {
-    "name": "3-buy.jpg",
-    "query": "?shot=3&seed=1"
+    "name": "3-side-choice.png",
+    "query": ""
+  },
+  {
+    "name": "4-ct-armory.jpg",
+    "query": "?shot=3&side=CT"
   }
 ]
