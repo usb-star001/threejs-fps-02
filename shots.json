@@ -1,5 +1,14 @@
 [
-  { "name": "1-midline.jpg", "query": "?shot=1&seed=1" },
-  { "name": "2-core.jpg", "query": "?shot=2&seed=1" },
-  { "name": "3-buy.jpg", "query": "?shot=3&seed=1" }
+  {
+    "name": "1-midline.png",
+    "query": "?shot=1&seed=1"
+  },
+  {
+    "name": "2-core.png",
+    "query": "?shot=2&seed=1"
+  },
+  {
+    "name": "3-buy.png",
+    "query": "?shot=3&seed=1"
+  }
 ]

@@ -1,0 +1,8 @@
+export function lineClear(ax,az,bx,bz,obstacles){const dx=bx-ax,dz=bz-az,len2=dx*dx+dz*dz;for(const c of obstacles){if(c.y!==undefined&&c.h!==undefined&&c.y-c.h/2>1.8)continue;if(c.r!==undefined){const t=len2?Math.max(0,Math.min(1,((c.x-ax)*dx+(c.z-az)*dz)/len2)):0;if(Math.hypot(ax+dx*t-c.x,az+dz*t-c.z)<c.r)return false;continue;}let t0=0,t1=1;for(const [p,q] of [[-dx,ax-(c.x-c.w/2)],[dx,(c.x+c.w/2)-ax],[-dz,az-(c.z-c.d/2)],[dz,(c.z+c.d/2)-az]]){if(Math.abs(p)<1e-9){if(q<0){t0=2;break;}}else{const t=q/p;if(p<0)t0=Math.max(t0,t);else t1=Math.min(t1,t);}}if(t0<=t1&&t0<=1&&t1>=0)return false;}return true;}
+export function pointBlocked(x,z,obstacles,radius=.38,bounds=29){if(Math.abs(x)>bounds||Math.abs(z)>23.5)return true;return obstacles.some(c=>{if(c.y!==undefined&&c.h!==undefined&&c.y-c.h/2>1.35)return false;return c.r!==undefined?Math.hypot(x-c.x,z-c.z)<c.r+radius:Math.abs(x-c.x)<c.w/2+radius&&Math.abs(z-c.z)<c.d/2+radius;});}
+export function steerStep(x,z,dx,dz,obstacles,radius=.38,seed=0,bounds=29){
+ const tx=x+dx,tz=z+dz;if(!pointBlocked(tx,tz,obstacles,radius,bounds))return [tx,tz];
+ const len=Math.hypot(dx,dz);if(len<1e-8)return [x,z];const fx=dx/len,fz=dz/len,choices=[[fz,-fx],[-fz,fx],[fx*.7+fz*.7,fz*.7-fx*.7],[fx*.7-fz*.7,fz*.7+fx*.7]];let best=null,bestScore=Infinity;
+ for(let i=0;i<choices.length;i++){const [vx,vz]=choices[i],cx=x+vx*len,cz=z+vz*len;if(pointBlocked(cx,cz,obstacles,radius,bounds))continue;let clear=true;for(let k=1;k<=4;k++){const t=k/4;if(pointBlocked(x+(cx-x)*t,z+(cz-z)*t,obstacles,radius,bounds)){clear=false;break;}}if(!clear)continue;const progress=(cx-x)*fx+(cz-z)*fz,d=Math.hypot(tx-cx,tz-cz),bias=((i+seed)%2)*.0001,score=d-progress*.3+bias;if(score<bestScore){best=[cx,cz];bestScore=score;}}
+ return best||[x,z];
+}
