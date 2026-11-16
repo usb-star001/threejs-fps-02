@@ -6,9 +6,11 @@
 
 An original offline, round-based tactical FPS with bots, objective play, and weapon loadouts.
 
-**Next candidate: v2.1.1**
+**Next candidate: v2.1.2**
 
 ## Changelog
+
+- **v2.1.2** — Minimap enemy contacts are shown only while currently visible through the shared cover- and smoke-aware visibility callback; allies, player, and core markers remain unchanged.
 
 - **v1.0.0** — Initial offline tactical FPS build with one compact arena, bot opponents, weapon purchases, and a site objective.
 - **v2.0.0** — Procedural harbor materials and set dressing; five original weapon classes with distinct stats and a persistent round economy; halftime team-role swap, objective-capable AI, and polished combat feedback. Firearm and grenade eliminations share exact 300-credit rewards and clear kill-feed causes. Buyable tactical vest (650 credits, 100 durability, 50% body reduction) and helmet (350 credits, 100 durability, 50% Pistol/SMG/LMG headshot reduction) add round-based protection; AR and Sniper headshots remain lethal. Four round-limited utilities—Frag (350), Incendiary (450), Smoke (300), and Flashbang (250)—add deterministic damage, fire, concealment, and blinding effects, with two total slots and dedicated hotkeys. The armory is responsive and readable, armor purchases are limited to once each per round, and the live-state no-op was removed.

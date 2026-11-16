@@ -1,9 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {state,receiveBotHit,hitBot,buyVest,buyHelmet,buyUtility,launchUtility,utilityCatalog,visibleWithSmoke,grenadeDamage,newBot,chooseTarget,beginRound,startBuy,buy,finishRound,attackerTeamForRound,roleForRound,seedArmoryPreview,canPlant,canDefuse,requestPlant,requestDefuse,liveStep,keys,stepBotObjective} from '../game/src/simulation.js';
+import {state,receiveBotHit,hitBot,buyVest,buyHelmet,buyUtility,launchUtility,utilityCatalog,visibleWithSmoke,grenadeDamage,newBot,chooseTarget,beginRound,startBuy,buy,finishRound,attackerTeamForRound,roleForRound,seedArmoryPreview,canPlant,canDefuse,requestPlant,requestDefuse,liveStep,keys,stepBotObjective,shouldShowMinimapBot} from '../game/src/simulation.js';
 import {lineClear,pointBlocked,steerStep,projectileBlocked,stepProjectile} from '../game/src/collision.js';
 import {arsenal,categories,freshWeapon,spreadForShot,recoilAngle} from '../game/src/weapons.js';
+
+
+test('minimap contacts preserve allies and reveal only living currently visible enemies',()=>{
+ const player={x:-4,z:0,team:'Rookline'},ally={x:0,z:0,team:'Rookline',alive:true},enemy={x:4,z:0,team:'Sumpguard',alive:true},dead={...enemy,alive:false};
+ assert.equal(shouldShowMinimapBot(ally,player,()=>false),true);
+ assert.equal(shouldShowMinimapBot(enemy,player,()=>true),true);
+ const cover=[{x:0,z:0,w:1,d:5}];
+ assert.equal(shouldShowMinimapBot(enemy,player,(ax,az,bx,bz)=>lineClear(ax,az,bx,bz,cover)),false);
+ state.smokeZones=[{x:0,z:0,radius:2}];
+ assert.equal(shouldShowMinimapBot(enemy,player,(ax,az,bx,bz)=>visibleWithSmoke(ax,az,bx,bz)),false);
+ state.smokeZones=[];
+ assert.equal(shouldShowMinimapBot(dead,player,()=>true),false);
+ assert.equal(shouldShowMinimapBot(enemy,player),false);
+});
 
 test('lethal grenade grants one elimination reward and one GRENADE feed entry',()=>{
  beginRound(1);const bot=state.bots.find(b=>b.team==='Sumpguard');bot.x=0;bot.z=0;bot.hp=50;
